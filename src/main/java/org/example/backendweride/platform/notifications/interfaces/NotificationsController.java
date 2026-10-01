@@ -34,7 +34,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @RestController
 @RequestMapping(value = "/api/v1/notifications", produces = APPLICATION_JSON_VALUE)
 @Tag(name = "Notifications", description = "Create, list and mark as read the notifications of the authenticated user.")
-@CrossOrigin(origins = "http://localhost:4200") // <--- Aseguramos CORS aquí también
 public class NotificationsController {
 
     private final NotificationCommandService notificationCommandService;
