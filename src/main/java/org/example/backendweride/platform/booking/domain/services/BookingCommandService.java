@@ -15,4 +15,5 @@ public interface BookingCommandService {
     Optional<Booking> handle(CompleteBookingCommand command);
     Optional<Booking> handle(CancelBookingCommand command);
     void handle(DeleteBookingCommand command);
+    Optional<Booking> handle(org.example.backendweride.platform.booking.domain.model.commands.RateBookingCommand command);
 }

@@ -5,14 +5,24 @@ import org.example.backendweride.platform.booking.interfaces.resources.BookingRe
 
 public class BookingResourceFromEntityAssembler {
 
+    /** Light resource for lists and state changes: no route. */
     public static BookingResource toResourceFromEntity(Booking entity) {
+        return build(entity, null);
+    }
+
+    /** Full resource with the recorded route, for complete and history detail. */
+    public static BookingResource toResourceWithRoute(Booking entity) {
+        return build(entity, entity.getRouteCoordinates());
+    }
+
+    private static BookingResource build(Booking entity, java.util.List<org.example.backendweride.platform.booking.domain.model.valueobjects.TripRouteCoordinate> route) {
 
         BookingResource.RatingResource ratingResource = null;
 
         if (entity.getRating() != null) {
             ratingResource = new BookingResource.RatingResource(
                     entity.getRating().getScore(),
-                    entity.getRating().getComment()
+                    entity.getRating().getComment(), entity.getRating().tagList()
             );
         }
 
@@ -36,7 +46,9 @@ public class BookingResourceFromEntityAssembler {
                 entity.getDistance(),
                 entity.getDuration(),
                 entity.getAverageSpeed(),
-                ratingResource
+                ratingResource,
+                route,
+                entity.getRouteSource()
         );
     }
 }

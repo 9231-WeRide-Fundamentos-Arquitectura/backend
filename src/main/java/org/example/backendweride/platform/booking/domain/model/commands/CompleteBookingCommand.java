@@ -1,5 +1,8 @@
 package org.example.backendweride.platform.booking.domain.model.commands;
 
+import java.util.List;
+import org.example.backendweride.platform.booking.domain.model.valueobjects.TripRouteCoordinate;
+
 public record CompleteBookingCommand(
         String bookingId,
         Double totalCost,
@@ -8,6 +11,8 @@ public record CompleteBookingCommand(
         Integer duration,
         Double averageSpeed,
         Integer ratingScore,
-        String ratingComment
+        String ratingComment,
+        List<TripRouteCoordinate> routeCoordinates,
+        String routeSource
 ) {
 }

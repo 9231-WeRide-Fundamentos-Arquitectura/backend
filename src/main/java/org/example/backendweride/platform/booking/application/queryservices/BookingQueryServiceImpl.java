@@ -21,6 +21,14 @@ public class BookingQueryServiceImpl implements BookingQueryService {
     }
 
     @Override
+    public org.springframework.data.domain.Page<Booking> handle(org.example.backendweride.platform.booking.domain.model.queries.GetBookingHistoryByUserIdQuery query) {
+        if (query.page() < 0 || query.size() < 1 || query.size() > 100)
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid history page");
+        return bookingRepository.findByUserIdAndStatus(query.userId(), "completed", org.springframework.data.domain.PageRequest.of(
+                query.page(), query.size(), org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "actualEndDate", "id")));
+    }
+
+    @Override
     public Optional<Booking> handle(GetBookingByIdQuery query) {
         return bookingRepository.findById(query.bookingId());
     }

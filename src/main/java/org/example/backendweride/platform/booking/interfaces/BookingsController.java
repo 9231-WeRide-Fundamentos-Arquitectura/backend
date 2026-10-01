@@ -62,6 +62,7 @@ public class BookingsController {
     @Operation(summary = "Create a booking", description = "Reserve a vehicle for the authenticated user between a start and an end location. The userId in the body must match the authenticated account.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Booking created successfully"),
+            @ApiResponse(responseCode = "409", description = "Critical scooter battery below 15 percent or vehicle already reserved in that time range"),
             @ApiResponse(responseCode = "400", description = "Booking could not be created"),
             @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
             @ApiResponse(responseCode = "403", description = "The resource belongs to another user")
@@ -98,7 +99,7 @@ public class BookingsController {
     }
 
     // 3. POST: Completar Viaje
-    @Operation(summary = "Complete a ride", description = "Finish the booking, recording cost, distance, duration, average speed and an optional rating.")
+    @Operation(summary = "Complete a ride", description = "Finish the booking and atomically persist cost, distance, duration, average speed, an optional rating and up to 5000 observed GPS coordinates. Missing routeCoordinates stores an empty route.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Booking completed successfully"),
             @ApiResponse(responseCode = "404", description = "Booking not found"),
@@ -113,11 +114,22 @@ public class BookingsController {
 
         if (booking.isEmpty()) return ResponseEntity.notFound().build();
 
-        var bookingResource = BookingResourceFromEntityAssembler.toResourceFromEntity(booking.get());
+        var bookingResource = BookingResourceFromEntityAssembler.toResourceWithRoute(booking.get());
         return ResponseEntity.ok(bookingResource);
     }
 
     // 4. GET: Listar reservas del usuario autenticado (filtro opcional por vehículo)
+    @Operation(summary = "Rate a completed booking", description = "Owner only. Score 1–5, optional comment up to 1000 characters and fixed tags. Returns 409 if not completed or already rated; 400 for invalid input.")
+    @PostMapping("/{bookingId}/rating")
+    public ResponseEntity<BookingResource> rateBooking(@PathVariable String bookingId,
+            @RequestBody org.example.backendweride.platform.booking.interfaces.resources.RateBookingResource resource,
+            Authentication authentication) {
+        return bookingCommandService.handle(new org.example.backendweride.platform.booking.domain.model.commands.RateBookingCommand(
+                bookingId, String.valueOf(CurrentUser.id(authentication)), resource.score(), resource.comment(), resource.tags()))
+                .map(b -> ResponseEntity.ok(BookingResourceFromEntityAssembler.toResourceFromEntity(b)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @Operation(summary = "Get my bookings", description = "List the bookings of the authenticated user, optionally filtered by vehicle.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Bookings retrieved successfully"),
@@ -131,6 +143,47 @@ public class BookingsController {
                 .map(BookingResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
+    }
+
+    @Operation(summary = "Get my trip history", description = "Page completed bookings owned by the authenticated account, including persisted metrics, final cost and recorded route. Old rides remain visible with an empty route.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "History page returned"),
+            @ApiResponse(responseCode = "400", description = "Invalid page or size"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token")})
+    @GetMapping("/history")
+    public org.example.backendweride.platform.booking.interfaces.resources.BookingHistoryResource getHistory(
+            @Parameter(description = "Zero based page", example = "0") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size from 1 to 100", example = "10") @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        var history = bookingQueryService.handle(new org.example.backendweride.platform.booking.domain.model.queries.GetBookingHistoryByUserIdQuery(
+                String.valueOf(CurrentUser.id(authentication)), page, size));
+        return new org.example.backendweride.platform.booking.interfaces.resources.BookingHistoryResource(
+                history.getContent().stream().map(BookingResourceFromEntityAssembler::toResourceFromEntity).toList(),
+                history.getTotalElements(), history.getTotalPages(), history.getNumber(), history.getSize());
+    }
+
+    @Operation(summary = "Get a completed ride", description = "Return one completed booking owned by the authenticated account with its recorded route and ride metrics.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Completed ride returned"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "Ride belongs to another account"),
+            @ApiResponse(responseCode = "404", description = "Completed ride not found")})
+    @GetMapping("/history/{bookingId}")
+    public ResponseEntity<BookingResource> getHistoryDetail(
+            @Parameter(description = "Completed booking UUID") @PathVariable String bookingId, Authentication authentication) {
+        return ownedBooking(bookingId, authentication).filter(booking -> "completed".equals(booking.getStatus()))
+                .map(booking -> ResponseEntity.ok(BookingResourceFromEntityAssembler.toResourceWithRoute(booking)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Get a booking", description = "Return one booking owned by the authenticated user, without the recorded route (use the history detail for that).")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Booking returned"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "Booking belongs to another account"),
+            @ApiResponse(responseCode = "404", description = "Booking not found")})
+    @GetMapping("/{bookingId}")
+    public ResponseEntity<BookingResource> getBooking(@Parameter(description = "Unique identifier of the booking") @PathVariable String bookingId, Authentication authentication) {
+        return ownedBooking(bookingId, authentication)
+                .map(booking -> ResponseEntity.ok(BookingResourceFromEntityAssembler.toResourceFromEntity(booking)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     // 4b. GET: Disponibilidad de un vehículo considerando las reservas de todos los usuarios
