@@ -24,6 +24,8 @@ public class ProfileEntity {
 
     private String name;
     private String phone;
+    // La foto viaja como data URL base64: no cabe en el VARCHAR(255) por defecto.
+    @Column(columnDefinition = "LONGTEXT")
     private String profilePicture;
     private LocalDate dateOfBirth;
     private String address;

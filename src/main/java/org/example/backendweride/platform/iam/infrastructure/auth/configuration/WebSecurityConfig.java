@@ -99,7 +99,8 @@ public class WebSecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-resources/**",
                                 "/webjars/**",
-                                "/api/v1/professional-profiles"
+                                "/api/v1/professional-profiles",
+                                "/error"
                         ).permitAll()
                         .anyRequest().authenticated());
         http.authenticationProvider(authenticationProvider());

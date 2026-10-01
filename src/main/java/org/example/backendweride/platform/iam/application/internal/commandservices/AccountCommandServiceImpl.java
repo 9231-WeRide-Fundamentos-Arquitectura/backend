@@ -33,7 +33,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     @Override
     public Optional<Account> handle(SignUpCommand command) {
         if(accountRepository.existsByUserName(command.username()))
-            throw new RuntimeException("User already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists");
 
         var account = new Account(command, hashingService.encode(command.password()));
 
