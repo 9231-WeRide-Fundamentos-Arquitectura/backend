@@ -14,6 +14,7 @@ import org.example.backendweride.platform.booking.domain.model.aggregates.Bookin
 import org.example.backendweride.platform.booking.domain.model.commands.CancelBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.DeleteBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.StartRideCommand;
+import org.example.backendweride.platform.booking.domain.model.queries.GetActiveBookingsByVehicleIdQuery;
 import org.example.backendweride.platform.booking.domain.model.queries.GetAllBookingsByUserIdQuery;
 import org.example.backendweride.platform.booking.domain.model.queries.GetBookingByIdQuery;
 import org.example.backendweride.platform.booking.domain.services.BookingCommandService;
@@ -21,6 +22,7 @@ import org.example.backendweride.platform.booking.domain.services.BookingQuerySe
 import org.example.backendweride.platform.booking.interfaces.resources.BookingResource;
 import org.example.backendweride.platform.booking.interfaces.resources.CompleteBookingResource;
 import org.example.backendweride.platform.booking.interfaces.resources.CreateBookingResource;
+import org.example.backendweride.platform.booking.interfaces.resources.VehicleAvailabilityResource;
 import org.example.backendweride.platform.booking.interfaces.transform.BookingResourceFromEntityAssembler;
 import org.example.backendweride.platform.booking.interfaces.transform.CompleteBookingCommandFromResourceAssembler;
 import org.example.backendweride.platform.booking.interfaces.transform.CreateBookingCommandFromResourceAssembler;
@@ -30,6 +32,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -126,6 +131,24 @@ public class BookingsController {
                 .map(BookingResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
+    }
+
+    // 4b. GET: Disponibilidad de un vehículo considerando las reservas de todos los usuarios
+    @Operation(summary = "Check vehicle availability", description = "Tell whether a vehicle is free between start and end (ISO-8601 instants) and list its busy slots. Slots are anonymous.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Availability computed"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token")
+    })
+    @GetMapping("/availability")
+    public ResponseEntity<VehicleAvailabilityResource> getAvailability(@RequestParam String vehicleId, @RequestParam Instant start, @RequestParam Instant end) {
+        var from = Date.from(start);
+        var to = Date.from(end);
+        var busy = bookingQueryService.handle(new GetActiveBookingsByVehicleIdQuery(vehicleId)).stream()
+                .filter(b -> b.busyUntil().after(new Date()))
+                .sorted(Comparator.comparing(Booking::busyFrom))
+                .toList();
+        var slots = busy.stream().map(b -> new VehicleAvailabilityResource.BusySlot(b.busyFrom(), b.busyUntil())).toList();
+        return ResponseEntity.ok(new VehicleAvailabilityResource(busy.stream().noneMatch(b -> b.overlaps(from, to)), slots));
     }
 
     // 5. DELETE: Borrar reserva

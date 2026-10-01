@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -54,8 +55,30 @@ public class Booking {
         this.endLocationId = command.endLocationId();
         this.reservedAt = new Date();
         this.status = "reserved";
+        this.startDate = command.startDate();
+        this.endDate = command.endDate();
+        if (command.totalCost() != null) {
+            this.totalCost = command.totalCost();
+            this.finalCost = command.totalCost();
+        }
 
         // El resto de campos nulos/cero se inicializan en la declaración del campo.
+    }
+
+    public static final List<String> ACTIVE_STATUSES = List.of("reserved", "in_progress");
+
+    /** Window during which this booking keeps its vehicle busy. */
+    public Date busyFrom() {
+        return startDate != null ? startDate : actualStartDate != null ? actualStartDate : reservedAt;
+    }
+
+    // ponytail: reservas inmediatas no tienen endDate; se asumen 2 h. Guardar la duración estimada si hace falta más precisión.
+    public Date busyUntil() {
+        return endDate != null ? endDate : new Date(busyFrom().getTime() + 2 * 3600_000L);
+    }
+
+    public boolean overlaps(Date from, Date to) {
+        return busyFrom().before(to) && busyUntil().after(from);
     }
 
     // MÉTODO: Para iniciar el viaje (Resuelve advertencia de startRide)

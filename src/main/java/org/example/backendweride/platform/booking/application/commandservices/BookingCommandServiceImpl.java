@@ -9,8 +9,11 @@ import org.example.backendweride.platform.booking.domain.model.commands.DeleteBo
 import org.example.backendweride.platform.booking.domain.model.valueobjects.Rating; // <--- Importante
 import org.example.backendweride.platform.booking.domain.services.BookingCommandService;
 import org.example.backendweride.platform.booking.infrastructure.persistence.jpa.BookingRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Date;
 import java.util.Optional;
 
 @Service
@@ -26,6 +29,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     @Override
     public Optional<Booking> handle(CreateBookingCommand command) {
         var booking = new Booking(command);
+        // Choque con la reserva de cualquier usuario sobre el mismo vehículo (US22 esc. 2).
+        var from = booking.busyFrom();
+        var to = command.endDate() != null ? command.endDate() : new Date(from.getTime() + 60_000L);
+        if (bookingRepository.findAllByVehicleIdAndStatusIn(command.vehicleId(), Booking.ACTIVE_STATUSES)
+                .stream().anyMatch(b -> b.overlaps(from, to)))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Vehicle is not available in that time range");
         bookingRepository.save(booking);
         return Optional.of(booking);
     }

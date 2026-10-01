@@ -4,9 +4,11 @@ import org.example.backendweride.platform.booking.domain.model.aggregates.Bookin
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, String> {
     List<Booking> findAllByUserId(String userId);
+    List<Booking> findAllByVehicleIdAndStatusIn(String vehicleId, Collection<String> statuses);
 }

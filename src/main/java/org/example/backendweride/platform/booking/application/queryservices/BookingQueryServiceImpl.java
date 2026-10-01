@@ -1,6 +1,7 @@
 package org.example.backendweride.platform.booking.application.queryservices;
 
 import org.example.backendweride.platform.booking.domain.model.aggregates.Booking;
+import org.example.backendweride.platform.booking.domain.model.queries.GetActiveBookingsByVehicleIdQuery;
 import org.example.backendweride.platform.booking.domain.model.queries.GetAllBookingsByUserIdQuery;
 import org.example.backendweride.platform.booking.domain.model.queries.GetBookingByIdQuery;
 import org.example.backendweride.platform.booking.domain.services.BookingQueryService;
@@ -27,5 +28,10 @@ public class BookingQueryServiceImpl implements BookingQueryService {
     @Override
     public List<Booking> handle(GetAllBookingsByUserIdQuery query) {
         return bookingRepository.findAllByUserId(query.userId());
+    }
+
+    @Override
+    public List<Booking> handle(GetActiveBookingsByVehicleIdQuery query) {
+        return bookingRepository.findAllByVehicleIdAndStatusIn(query.vehicleId(), Booking.ACTIVE_STATUSES);
     }
 }
