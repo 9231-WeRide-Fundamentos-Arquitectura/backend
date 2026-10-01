@@ -1,0 +1,4 @@
+package org.example.backendweride.platform.notifications.domain.model.queries;
+
+public record GetAllNotificationsByUserIdQuery(String userId) {
+}
