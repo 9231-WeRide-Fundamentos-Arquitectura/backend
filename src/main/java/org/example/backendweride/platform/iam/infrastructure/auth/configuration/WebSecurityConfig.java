@@ -74,7 +74,8 @@ public class WebSecurityConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:4200",
                 "https://weride.duckdns.org",
-                "https://frontend-we-ride-lake.vercel.app"));
+                "https://frontend-we-ride-lake.vercel.app",
+                "https://weride-frontend.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
