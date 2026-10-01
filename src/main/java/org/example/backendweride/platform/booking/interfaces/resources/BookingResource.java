@@ -1,7 +1,10 @@
 package org.example.backendweride.platform.booking.interfaces.resources;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
+@Schema(description = "A booking of a vehicle made by a user, with its status, costs, payment and ride metrics.")
 public record BookingResource(
         String id,
         String userId,

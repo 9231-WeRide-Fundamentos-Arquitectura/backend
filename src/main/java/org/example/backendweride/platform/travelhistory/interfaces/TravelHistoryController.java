@@ -1,5 +1,7 @@
 package org.example.backendweride.platform.travelhistory.interfaces;
 
+import io.swagger.v3.oas.annotations.Parameter;
+
 import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
 import org.springframework.security.core.Authentication;
 
@@ -33,7 +35,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/travel-history", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Travel History", description = "Create, Obtain and Update Travel History")
+@Tag(name = "Travel History", description = "Keep a personal log of past rides: create, list and update the travel history records of the authenticated user.")
 public class TravelHistoryController {
     private final TravelHistoryCommandService travelHistoryCommandService;
     private final TravelHistoryQueryService travelHistoryQueryService;
@@ -53,9 +55,11 @@ public class TravelHistoryController {
      * @return ResponseEntity containing the created travel history or an error status.
      */
     @PostMapping
-    @Operation(summary = "Create Travel History", description = "Create a new travel history record")
+    @Operation(summary = "Create Travel History", description = "Create a new travel history record (location, vehicle, duration and distance) for the authenticated user. The userId in the body must match the authenticated account.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Travel history created successfully"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The userId in the body belongs to another user"),
             @ApiResponse(responseCode = "404", description = "Related entity not found")
     })
     public ResponseEntity<TravelHistoryResource> createTravelHistory(@RequestBody CreateTravelHistoryResource travelHistoryResource, Authentication authentication) {
@@ -72,9 +76,10 @@ public class TravelHistoryController {
      * @return ResponseEntity containing the list of all travel history records or an error status.
      */
     @GetMapping
-    @Operation(summary = "Get All Travel Histories", description = "Retrieve all travel history records")
+    @Operation(summary = "Get My Travel Histories", description = "Retrieve all travel history records of the authenticated user.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Travel histories found"),
+            @ApiResponse(responseCode = "200", description = "Travel histories found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
             @ApiResponse(responseCode = "404", description = "No travel histories found")
     })
     public ResponseEntity<List<TravelHistory>> getAllTravelHistories(Authentication authentication) {
@@ -90,12 +95,14 @@ public class TravelHistoryController {
      * @return ResponseEntity containing the list of travel history records or an error status.
      */
     @GetMapping("{userId}")
-    @Operation(summary = "Get Travel History by User ID", description = "Retrieve travel history records for a specific user by their ID")
+    @Operation(summary = "Get Travel History by User ID", description = "Retrieve the travel history records of a specific user. Only the user themselves can query their own records.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Travel history found"),
+            @ApiResponse(responseCode = "200", description = "Travel history found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The history belongs to another user"),
             @ApiResponse(responseCode = "404", description = "Travel history not found")
     })
-    public ResponseEntity<List<TravelHistory>> getTravelHistoryById(@PathVariable Long userId, Authentication authentication) {
+    public ResponseEntity<List<TravelHistory>> getTravelHistoryById(@Parameter(description = "ID of the user whose travel history is requested") @PathVariable Long userId, Authentication authentication) {
         CurrentUser.requireSelf(authentication, userId);
         var result = travelHistoryQueryService.handle(new GetTravelsHistoryById(userId));
         return result.map(response -> new ResponseEntity<>(response, HttpStatus.OK))
@@ -110,13 +117,15 @@ public class TravelHistoryController {
      * @return ResponseEntity containing the updated travel history or an error status.
      */
     @PutMapping("/{id}")
-    @Operation(summary = "Update Travel History", description = "Update an existing travel history record")
+    @Operation(summary = "Update a Travel History record", description = "Update the location, vehicle, image, duration and distance of an existing travel history record owned by the authenticated user.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Travel history updated successfully"),
-            @ApiResponse(responseCode = "404", description = "Travel history not found")
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The userId in the body belongs to another user"),
+            @ApiResponse(responseCode = "404", description = "Travel history not found or not owned by the user")
     })
     public ResponseEntity<TravelHistoryResource> updateTravelHistory(
-            @PathVariable Long id,
+            @Parameter(description = "Unique identifier of the travel history record") @PathVariable Long id,
             @RequestBody UpdateTravelHistoryResource resource,
             Authentication authentication) {
         CurrentUser.requireSelf(authentication, resource.userId());

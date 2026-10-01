@@ -1,7 +1,10 @@
 package org.example.backendweride.platform.plan.interfaces.resources;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
+@Schema(description = "Data required to create a subscription plan.")
 public record CreatePlanResource(
         String name,
         String description,

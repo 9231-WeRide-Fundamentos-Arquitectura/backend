@@ -1,5 +1,7 @@
 package org.example.backendweride.platform.profile.interfaces.rest;
 
+import io.swagger.v3.oas.annotations.Parameter;
+
 import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
 import org.springframework.security.core.Authentication;
 
@@ -26,7 +28,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/profiles", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Profiles", description = "Obtain and Update User Profiles")
+@Tag(name = "Profiles", description = "Retrieve and update the personal profile of the authenticated user.")
 public class ProfilesController {
 
     private final ProfileQueryService profileQueryService;
@@ -44,12 +46,14 @@ public class ProfilesController {
      * @return ResponseEntity containing the user resource or a not found status.
      */
     @GetMapping("/{userId}")
-    @Operation(summary = "Get profile by User ID", description = "Retrieve user profile details using the associated account ID.")
+    @Operation(summary = "Get profile by User ID", description = "Retrieve user profile details using the associated account ID. Only the owner can query it.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "User found"),
-            @ApiResponse(responseCode = "404", description = "User not found")
+            @ApiResponse(responseCode = "200", description = "Profile found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The profile belongs to another user"),
+            @ApiResponse(responseCode = "404", description = "Profile not found")
     })
-    public ResponseEntity<ProfileResource> getProfileByAccountId(@PathVariable Long userId, Authentication authentication) {
+    public ResponseEntity<ProfileResource> getProfileByAccountId(@Parameter(description = "ID of the account that owns the profile") @PathVariable Long userId, Authentication authentication) {
         CurrentUser.requireSelf(authentication, userId);
         var query = new GetProfileByUserIdQuery(userId);
         var profile = profileQueryService.handle(query);
@@ -68,12 +72,14 @@ public class ProfilesController {
      * @return ResponseEntity containing the updated user resource or a not found status.
      */
     @PutMapping("/{userId}")
-    @Operation(summary = "Update profile by User ID", description = "Update user profile details using the user ID.")
+    @Operation(summary = "Update profile by User ID", description = "Update the personal details (name, phone, picture, birth date, address, emergency contact) of the profile. Only the owner can update it.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "User updated successfully"),
-            @ApiResponse(responseCode = "404", description = "User not found")
+            @ApiResponse(responseCode = "200", description = "Profile updated successfully"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The profile belongs to another user"),
+            @ApiResponse(responseCode = "404", description = "Profile not found")
     })
-    public ResponseEntity<ProfileResource> updateProfile(@PathVariable Long userId, @RequestBody UpdateUserResource resource, Authentication authentication) {
+    public ResponseEntity<ProfileResource> updateProfile(@Parameter(description = "ID of the account that owns the profile") @PathVariable Long userId, @RequestBody UpdateUserResource resource, Authentication authentication) {
         CurrentUser.requireSelf(authentication, userId);
         var command = UpdateProfileCommandFromResourceAssembler.toCommand(userId, resource);
         var profile = profileCommandService.handle(command);

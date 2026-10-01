@@ -1,5 +1,7 @@
 package org.example.backendweride.platform.iam.interfaces.rest;
 
+import io.swagger.v3.oas.annotations.Parameter;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -30,7 +32,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "api/v1/authentication", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Authentication", description = "Manage Auth in the System")
+@Tag(name = "Authentication", description = "Public endpoints to register new accounts and sign in to obtain a JWT token.")
 public class IamAuthController {
     private final AccountCommandService accountCommandService;
 
@@ -44,10 +46,10 @@ public class IamAuthController {
      * @return ResponseEntity containing the authenticated account resource or an error status.
      */
     @PostMapping("/sign-in")
-    @Operation(summary = "Sign in to the system", description = "Authenticate a user and return an authenticated account resource.")
+    @Operation(summary = "Sign in to the system", description = "Authenticate a user with username and password and return the account ID and a JWT token to use as Bearer token.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully authenticated"),
-            @ApiResponse(responseCode = "404", description = "Authentication failed, account not found")
+            @ApiResponse(responseCode = "401", description = "Invalid username or password")
     })
     public ResponseEntity<AuthenticatedAccountResource> signIn(@RequestBody SignInResource signInResource) {
         var signInCommand = SignInCommandFromResourceAssembler.toCommandFromResource(signInResource);
@@ -66,10 +68,10 @@ public class IamAuthController {
      * @return ResponseEntity containing the created account resource or an error status.
      */
     @PostMapping("/sign-up")
-    @Operation(summary = "Sign up for a new account", description = "Create a new user account in the system.")
+    @Operation(summary = "Sign up for a new account", description = "Create a new user account with a username and password.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Account created successfully"),
-            @ApiResponse(responseCode = "400", description = "Account creation failed due to bad request")
+            @ApiResponse(responseCode = "400", description = "Account creation failed, for example the username already exists or the data is invalid")
     })
     public ResponseEntity<AccountResource> signUp(@RequestBody SignUpResource signUpResource) {
         var signUpCommand = SignUpCommandFromResourceAssembler.toCommandFromResource(signUpResource);

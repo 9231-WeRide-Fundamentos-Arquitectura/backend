@@ -1,5 +1,7 @@
 package org.example.backendweride.platform.iam.interfaces.rest;
 
+import io.swagger.v3.oas.annotations.Parameter;
+
 import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
 import org.springframework.security.core.Authentication;
 
@@ -26,7 +28,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "api/v1/accounts", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Accounts", description = "Manage User Accounts")
+@Tag(name = "Accounts", description = "Consult the account of the authenticated user.")
 public class AccountsController {
     private final AccountQueryService accountQueryService;
     public AccountsController(AccountQueryService accountQueryService) {
@@ -39,12 +41,14 @@ public class AccountsController {
      * @return ResponseEntity containing the account resource or a not found status.
      */
     @GetMapping("/{accountId}")
-    @Operation (summary = "Get account by ID", description = "Retrieve account details using the account ID.")
+    @Operation (summary = "Get account by ID", description = "Retrieve account details using the account ID. Only the owner of the account can query it.")
     @ApiResponses (value = {
             @ApiResponse(responseCode = "200", description = "Account found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The account belongs to another user"),
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    public ResponseEntity<AccountResource> getAccountById(@PathVariable Long accountId, Authentication authentication) {
+    public ResponseEntity<AccountResource> getAccountById(@Parameter(description = "Unique identifier of the account") @PathVariable Long accountId, Authentication authentication) {
         CurrentUser.requireSelf(authentication, accountId);
         var getAccountByIdQuery = new GetAccountByIdQuery(accountId);
         var account = accountQueryService.handle(getAccountByIdQuery);

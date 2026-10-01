@@ -1,5 +1,13 @@
 package org.example.backendweride.platform.notifications.interfaces;
 
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
+import io.swagger.v3.oas.annotations.Parameter;
+
+import io.swagger.v3.oas.annotations.Operation;
+
 import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
 import org.springframework.security.core.Authentication;
 
@@ -25,7 +33,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping(value = "/api/v1/notifications", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Notifications", description = "Notification Management Endpoints")
+@Tag(name = "Notifications", description = "Create, list and mark as read the notifications of the authenticated user.")
 @CrossOrigin(origins = "http://localhost:4200") // <--- Aseguramos CORS aquí también
 public class NotificationsController {
 
@@ -37,6 +45,12 @@ public class NotificationsController {
         this.notificationQueryService = notificationQueryService;
     }
 
+    @Operation(summary = "Create a notification", description = "Create a notification for a user. The userId in the body must match the username of the authenticated account.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Notification created successfully"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The resource belongs to another user")
+    })
     @PostMapping
     public ResponseEntity<NotificationResource> createNotification(@RequestBody CreateNotificationResource resource, Authentication authentication) {
         CurrentUser.requireUsername(authentication, resource.userId());
@@ -49,6 +63,11 @@ public class NotificationsController {
      * Obtener notificaciones por Usuario (Extraído del Token).
      * Uso: GET /api/v1/notifications (Header Authorization: Bearer ...)
      */
+    @Operation(summary = "Get my notifications", description = "List all notifications of the authenticated user; the user is taken from the JWT token.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Notifications retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token")
+    })
     @GetMapping
     public ResponseEntity<List<NotificationResource>> getAllNotificationsByUserId(Authentication authentication) {
 
@@ -72,8 +91,15 @@ public class NotificationsController {
         return ResponseEntity.ok(resources);
     }
 
+    @Operation(summary = "Get notification by ID", description = "Retrieve a single notification using its ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Notification found"),
+            @ApiResponse(responseCode = "404", description = "Notification not found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The resource belongs to another user")
+    })
     @GetMapping("/{notificationId}")
-    public ResponseEntity<NotificationResource> getNotificationById(@PathVariable String notificationId, Authentication authentication) {
+    public ResponseEntity<NotificationResource> getNotificationById(@Parameter(description = "Unique identifier of the notification") @PathVariable String notificationId, Authentication authentication) {
         var query = new GetNotificationByIdQuery(notificationId);
         var notification = notificationQueryService.handle(query);
         if (notification.isPresent()) CurrentUser.requireUsername(authentication, notification.get().getUserId());
@@ -82,8 +108,15 @@ public class NotificationsController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Mark notification as read", description = "Mark a notification of the authenticated user as read.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Notification marked as read"),
+            @ApiResponse(responseCode = "404", description = "Notification not found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The resource belongs to another user")
+    })
     @PatchMapping("/{notificationId}/read")
-    public ResponseEntity<String> markAsRead(@PathVariable String notificationId, Authentication authentication) {
+    public ResponseEntity<String> markAsRead(@Parameter(description = "Unique identifier of the notification") @PathVariable String notificationId, Authentication authentication) {
         var notification = notificationQueryService.handle(new GetNotificationByIdQuery(notificationId));
         if (notification.isEmpty()) return ResponseEntity.notFound().build();
         CurrentUser.requireUsername(authentication, notification.get().getUserId());
