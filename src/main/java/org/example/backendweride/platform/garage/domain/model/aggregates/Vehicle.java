@@ -1,6 +1,8 @@
 package org.example.backendweride.platform.garage.domain.model.aggregates;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -57,6 +59,9 @@ public class Vehicle {
     private String image;
 
     @Getter
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    @Column(length = 1000)
     private List<String> features = new ArrayList<>();
 
     @Getter
