@@ -54,8 +54,9 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Optional<ImmutablePair<Account, String>> handle(SignInCommand command) {
-        var account = accountRepository.findByUserName(command.username())
+        var account = accountRepository.findLockedByUserName(command.username())
                 .filter(a -> hashingService.matches(command.password(), a.getPassword()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
         var token = tokenService.generateToken(account.getUserName());

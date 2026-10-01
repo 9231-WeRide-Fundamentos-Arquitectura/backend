@@ -1,6 +1,12 @@
 package org.example.backendweride.platform.iam.infrastructure.tokens.jwt.services;
 
 import org.example.backendweride.platform.iam.infrastructure.tokens.jwt.BearerTokenService;
+import org.example.backendweride.platform.iam.domain.model.aggregates.AccountSession;
+import org.example.backendweride.platform.iam.infrastructure.persistence.jpa.repositories.AccountRepository;
+import org.example.backendweride.platform.iam.infrastructure.persistence.jpa.repositories.AccountSessionRepository;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
@@ -24,6 +30,13 @@ import java.util.function.Function;
  */
 @Service
 public class TokenServiceImpl implements BearerTokenService {
+    private final AccountRepository accounts;
+    private final AccountSessionRepository sessions;
+
+    public TokenServiceImpl(AccountRepository accounts, AccountSessionRepository sessions) {
+        this.accounts = accounts;
+        this.sessions = sessions;
+    }
 
     private final Logger LOGGER = LoggerFactory.getLogger(TokenServiceImpl.class);
     private static final String AUTHORIZATION_PARAMETER_NAME = "Authorization";
@@ -66,8 +79,13 @@ public class TokenServiceImpl implements BearerTokenService {
         var issuedAt = new Date();
         var expiration = DateUtils.addDays(issuedAt, expirationDays);
         var key = getSigningKey();
+        var account = accounts.findLockedByUserName(username).orElseThrow();
+        var attributes = RequestContextHolder.getRequestAttributes();
+        var userAgent = attributes instanceof ServletRequestAttributes request ? request.getRequest().getHeader("User-Agent") : null;
+        var session = sessions.save(new AccountSession(account.getId(), expiration.toInstant(), userAgent));
         return Jwts.builder()
                 .subject(username)
+                .claim("sid", session.getId())
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .signWith(key)
@@ -86,11 +104,13 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
+    @Transactional
     public String generateToken(Authentication authentication) {
         return buildTokenWithDefaultParameters(authentication.getName());
     }
 
     @Override
+    @Transactional
     public String generateToken(String username) {
         return buildTokenWithDefaultParameters(username);
     }
@@ -101,10 +121,22 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
+    public String getSessionIdFromToken(String token) {
+        return extractClaim(token, claims -> claims.get("sid", String.class));
+    }
+
+    @Override
+    @Transactional
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
-            LOGGER.info("Token is valida");
+            var claims = extractAllClaims(token);
+            var sid = claims.get("sid", String.class);
+            if (sid == null) return false;
+            var session = sessions.findById(sid).orElse(null);
+            if (session == null || !session.isActive()) return false;
+            var account = accounts.findById(session.getAccountId()).orElse(null);
+            if (account == null || !account.getUserName().equals(claims.getSubject())) return false;
+            session.seen();
             return true;
         } catch (SignatureException e) {
             LOGGER.error("Invalid token signature: {}", e.getMessage());
