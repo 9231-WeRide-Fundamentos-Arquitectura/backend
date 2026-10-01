@@ -10,7 +10,9 @@ import org.example.backendweride.platform.iam.domain.model.valueobjects.ProfileI
 import org.example.backendweride.platform.iam.domain.services.AccountCommandService;
 import org.example.backendweride.platform.iam.infrastructure.persistence.jpa.repositories.AccountRepository;
 import org.example.backendweride.platform.profile.interfaces.acl.ProfileContextFacade; // IMPORTANTE
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -53,12 +55,10 @@ public class AccountCommandServiceImpl implements AccountCommandService {
 
     @Override
     public Optional<ImmutablePair<Account, String>> handle(SignInCommand command) {
-        var accountExists = accountRepository.existsByUserName(command.username());
-        if(accountExists) {
-            var account = accountRepository.findByUserName(command.username());
-            var token = tokenService.generateToken(account.get().getUserName());
-            return Optional.of(ImmutablePair.of(account.get(), token));
-        }
-        throw new RuntimeException("User not found");
+        var account = accountRepository.findByUserName(command.username())
+                .filter(a -> hashingService.matches(command.password(), a.getPassword()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
+        var token = tokenService.generateToken(account.getUserName());
+        return Optional.of(ImmutablePair.of(account, token));
     }
 }

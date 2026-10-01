@@ -1,5 +1,8 @@
 package org.example.backendweride.platform.iam.interfaces.rest;
 
+import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
+import org.springframework.security.core.Authentication;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -41,7 +44,8 @@ public class AccountsController {
             @ApiResponse(responseCode = "200", description = "Account found"),
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    public ResponseEntity<AccountResource> getAccountById(@PathVariable Long accountId) {
+    public ResponseEntity<AccountResource> getAccountById(@PathVariable Long accountId, Authentication authentication) {
+        CurrentUser.requireSelf(authentication, accountId);
         var getAccountByIdQuery = new GetAccountByIdQuery(accountId);
         var account = accountQueryService.handle(getAccountByIdQuery);
         if(account.isEmpty()) return ResponseEntity.notFound().build();
