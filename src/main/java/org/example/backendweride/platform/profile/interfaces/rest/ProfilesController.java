@@ -1,5 +1,8 @@
 package org.example.backendweride.platform.profile.interfaces.rest;
 
+import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
+import org.springframework.security.core.Authentication;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -46,7 +49,8 @@ public class ProfilesController {
             @ApiResponse(responseCode = "200", description = "User found"),
             @ApiResponse(responseCode = "404", description = "User not found")
     })
-    public ResponseEntity<ProfileResource> getProfileByAccountId(@PathVariable Long userId) {
+    public ResponseEntity<ProfileResource> getProfileByAccountId(@PathVariable Long userId, Authentication authentication) {
+        CurrentUser.requireSelf(authentication, userId);
         var query = new GetProfileByUserIdQuery(userId);
         var profile = profileQueryService.handle(query);
         if (profile.isEmpty()) {
@@ -69,7 +73,8 @@ public class ProfilesController {
             @ApiResponse(responseCode = "200", description = "User updated successfully"),
             @ApiResponse(responseCode = "404", description = "User not found")
     })
-    public ResponseEntity<ProfileResource> updateProfile(@PathVariable Long userId, @RequestBody UpdateUserResource resource) {
+    public ResponseEntity<ProfileResource> updateProfile(@PathVariable Long userId, @RequestBody UpdateUserResource resource, Authentication authentication) {
+        CurrentUser.requireSelf(authentication, userId);
         var command = UpdateProfileCommandFromResourceAssembler.toCommand(userId, resource);
         var profile = profileCommandService.handle(command);
         if (profile.isEmpty()) {

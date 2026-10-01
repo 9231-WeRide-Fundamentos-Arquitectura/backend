@@ -32,7 +32,7 @@ public class ProfileCommandServiceImpl implements ProfileCommandService {
 
     @Override
     public Optional<Profile> handle(UpdateProfileCommand command) {
-        var entity = profileRepository.findById(command.userId());
+        var entity = profileRepository.findByUserId(command.userId());
         if (entity.isEmpty()) {
             return Optional.empty();
         }
