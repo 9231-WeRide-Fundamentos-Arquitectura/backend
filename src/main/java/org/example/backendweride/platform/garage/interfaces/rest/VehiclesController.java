@@ -35,10 +35,21 @@ public class VehiclesController {
 
     private final VehicleCommandService vehicleCommandService;
     private final VehicleQueryService vehicleQueryService;
+    private final org.example.backendweride.platform.booking.infrastructure.persistence.jpa.BookingRepository bookings;
 
-    public VehiclesController(VehicleCommandService vehicleCommandService, VehicleQueryService vehicleQueryService) {
+    public VehiclesController(VehicleCommandService vehicleCommandService, VehicleQueryService vehicleQueryService,
+            org.example.backendweride.platform.booking.infrastructure.persistence.jpa.BookingRepository bookings) {
         this.vehicleCommandService = vehicleCommandService;
         this.vehicleQueryService = vehicleQueryService;
+        this.bookings = bookings;
+    }
+
+    private static Double round1(Double value) {
+        return value == null ? null : Math.round(value * 10) / 10.0;
+    }
+
+    private VehicleResource vehicleResource(org.example.backendweride.platform.garage.domain.model.aggregates.Vehicle vehicle) {
+        return VehicleResourceFromEntityAssembler.toResourceFromEntity(vehicle, round1(bookings.averageRating(vehicle.getId().toString())));
     }
 
     // 1. POST: Crear
@@ -56,7 +67,7 @@ public class VehiclesController {
         var getVehicleByIdQuery = new GetVehicleByIdQuery(vehicleId);
         var vehicle = vehicleQueryService.handle(getVehicleByIdQuery);
 
-        return vehicle.map(value -> new ResponseEntity<>(VehicleResourceFromEntityAssembler.toResourceFromEntity(value), HttpStatus.CREATED)).orElseGet(() -> ResponseEntity.badRequest().build());
+        return vehicle.map(value -> new ResponseEntity<>(vehicleResource(value), HttpStatus.CREATED)).orElseGet(() -> ResponseEntity.badRequest().build());
 
     }
 
@@ -71,8 +82,11 @@ public class VehiclesController {
         var getAllVehiclesQuery = new GetAllVehiclesQuery();
         var vehicles = vehicleQueryService.handle(getAllVehiclesQuery);
 
+        // One grouped query instead of one per vehicle.
+        var averages = new java.util.HashMap<String, Double>();
+        bookings.averageRatingsByVehicle().forEach(row -> averages.put((String) row[0], round1(((Number) row[1]).doubleValue())));
         var resources = vehicles.stream()
-                .map(VehicleResourceFromEntityAssembler::toResourceFromEntity)
+                .map(v -> VehicleResourceFromEntityAssembler.toResourceFromEntity(v, averages.get(v.getId().toString())))
                 .toList();
 
         return ResponseEntity.ok(resources);
@@ -90,7 +104,7 @@ public class VehiclesController {
         var getVehicleByIdQuery = new GetVehicleByIdQuery(id);
         var vehicle = vehicleQueryService.handle(getVehicleByIdQuery);
 
-        return vehicle.map(value -> ResponseEntity.ok(VehicleResourceFromEntityAssembler.toResourceFromEntity(value))).orElseGet(() -> ResponseEntity.notFound().build());
+        return vehicle.map(value -> ResponseEntity.ok(vehicleResource(value))).orElseGet(() -> ResponseEntity.notFound().build());
 
     }
 
@@ -106,7 +120,7 @@ public class VehiclesController {
         var command = UpdateVehicleCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var updatedVehicle = vehicleCommandService.handle(command);
 
-        return updatedVehicle.map(vehicle -> ResponseEntity.ok(VehicleResourceFromEntityAssembler.toResourceFromEntity(vehicle))).orElseGet(() -> ResponseEntity.notFound().build());
+        return updatedVehicle.map(vehicle -> ResponseEntity.ok(vehicleResource(vehicle))).orElseGet(() -> ResponseEntity.notFound().build());
 
     }
 

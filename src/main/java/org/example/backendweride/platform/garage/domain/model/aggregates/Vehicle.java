@@ -101,6 +101,11 @@ public class Vehicle {
         this.rating = command.rating();
     }
 
+    public void markForMaintenance() {
+        this.status = "maintenance";
+        this.maintenanceStatus = "pending";
+    }
+
     public Vehicle updateInformation(UpdateVehicleCommand command) {
         this.brand = command.brand();
         this.model = command.model();
