@@ -64,6 +64,10 @@ public class Booking {
         this.actualStartDate = new Date();
     }
 
+    public void cancel() {
+        this.status = "cancelled";
+    }
+
     // MÉTODO: Para finalizar la reserva (Resuelve advertencia de completeBooking)
     public void completeBooking(Double totalCost, Double discount, Double distance, Integer duration, Double averageSpeed, Rating rating) {
         this.status = "completed";

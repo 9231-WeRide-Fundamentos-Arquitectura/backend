@@ -1,36 +1,51 @@
 package org.example.backendweride.platform.booking.interfaces;
 
+import org.example.backendweride.platform.booking.domain.model.aggregates.Booking;
+import org.example.backendweride.platform.booking.domain.model.commands.CancelBookingCommand;
+import org.example.backendweride.platform.booking.domain.model.commands.DeleteBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.StartRideCommand;
+import org.example.backendweride.platform.booking.domain.model.queries.GetAllBookingsByUserIdQuery;
+import org.example.backendweride.platform.booking.domain.model.queries.GetBookingByIdQuery;
 import org.example.backendweride.platform.booking.domain.services.BookingCommandService;
+import org.example.backendweride.platform.booking.domain.services.BookingQueryService;
 import org.example.backendweride.platform.booking.interfaces.resources.BookingResource;
 import org.example.backendweride.platform.booking.interfaces.resources.CompleteBookingResource;
 import org.example.backendweride.platform.booking.interfaces.resources.CreateBookingResource;
 import org.example.backendweride.platform.booking.interfaces.transform.BookingResourceFromEntityAssembler;
 import org.example.backendweride.platform.booking.interfaces.transform.CompleteBookingCommandFromResourceAssembler;
 import org.example.backendweride.platform.booking.interfaces.transform.CreateBookingCommandFromResourceAssembler;
+import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List; // <--- Importante para la lista
+import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping(value = "/api/v1/bookings")
-@CrossOrigin(origins = "http://localhost:4200", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH})
 public class BookingsController {
 
     private final BookingCommandService bookingCommandService;
+    private final BookingQueryService bookingQueryService;
 
-    // Si tienes el QueryService implementado, inyéctalo aquí también:
-    // private final BookingQueryService bookingQueryService;
-
-    public BookingsController(BookingCommandService bookingCommandService) {
+    public BookingsController(BookingCommandService bookingCommandService, BookingQueryService bookingQueryService) {
         this.bookingCommandService = bookingCommandService;
+        this.bookingQueryService = bookingQueryService;
+    }
+
+    /** Finds a booking and checks it belongs to the caller; empty means 404. */
+    private Optional<Booking> ownedBooking(String bookingId, Authentication authentication) {
+        var booking = bookingQueryService.handle(new GetBookingByIdQuery(bookingId));
+        booking.ifPresent(b -> CurrentUser.requireSelf(authentication, b.getUserId()));
+        return booking;
     }
 
     // 1. POST: Crear Reserva
     @PostMapping
-    public ResponseEntity<BookingResource> createBooking(@RequestBody CreateBookingResource resource) {
+    public ResponseEntity<BookingResource> createBooking(@RequestBody CreateBookingResource resource, Authentication authentication) {
+        CurrentUser.requireSelf(authentication, resource.userId());
         var command = CreateBookingCommandFromResourceAssembler.toCommandFromResource(resource);
         var booking = bookingCommandService.handle(command);
 
@@ -42,9 +57,9 @@ public class BookingsController {
 
     // 2. PUT: Iniciar Viaje
     @PutMapping("/{bookingId}/start")
-    public ResponseEntity<BookingResource> startRide(@PathVariable String bookingId) {
-        var command = new StartRideCommand(bookingId);
-        var booking = bookingCommandService.handle(command);
+    public ResponseEntity<BookingResource> startRide(@PathVariable String bookingId, Authentication authentication) {
+        if (ownedBooking(bookingId, authentication).isEmpty()) return ResponseEntity.notFound().build();
+        var booking = bookingCommandService.handle(new StartRideCommand(bookingId));
 
         if (booking.isEmpty()) return ResponseEntity.notFound().build();
 
@@ -54,7 +69,8 @@ public class BookingsController {
 
     // 3. POST: Completar Viaje
     @PostMapping("/{bookingId}/complete")
-    public ResponseEntity<BookingResource> completeBooking(@PathVariable String bookingId, @RequestBody CompleteBookingResource resource) {
+    public ResponseEntity<BookingResource> completeBooking(@PathVariable String bookingId, @RequestBody CompleteBookingResource resource, Authentication authentication) {
+        if (ownedBooking(bookingId, authentication).isEmpty()) return ResponseEntity.notFound().build();
         var command = CompleteBookingCommandFromResourceAssembler.toCommandFromResource(bookingId, resource);
         var booking = bookingCommandService.handle(command);
 
@@ -64,29 +80,31 @@ public class BookingsController {
         return ResponseEntity.ok(bookingResource);
     }
 
-    // --- MÉTODOS NUEVOS PARA ARREGLAR ERRORES DE CONSOLA ---
-
-    // 4. GET: Listar Reservas (Arregla el error 405)
+    // 4. GET: Listar reservas del usuario autenticado (filtro opcional por vehículo)
     @GetMapping
-    public ResponseEntity<List<BookingResource>> getAllBookings(@RequestParam(required = false) String vehicleId) {
-        // TODO: Aquí deberías llamar a tu BookingQueryService.handle(query)
-        // Por ahora devolvemos una lista vacía para que el frontend deje de fallar en rojo.
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<BookingResource>> getAllBookings(@RequestParam(required = false) String vehicleId, Authentication authentication) {
+        var userId = String.valueOf(CurrentUser.id(authentication));
+        var resources = bookingQueryService.handle(new GetAllBookingsByUserIdQuery(userId)).stream()
+                .filter(b -> vehicleId == null || vehicleId.equals(b.getVehicleId()))
+                .map(BookingResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+        return ResponseEntity.ok(resources);
     }
 
-    // 5. DELETE: Borrar Reserva (Arregla el error 404 al borrar)
+    // 5. DELETE: Borrar reserva
     @DeleteMapping("/{bookingId}")
-    public ResponseEntity<Void> deleteBooking(@PathVariable String bookingId) {
-        // TODO: Aquí deberías llamar a bookingCommandService.handle(new DeleteBookingCommand(bookingId))
-        // Por ahora devolvemos "No Content" (Éxito) para simular que se borró.
+    public ResponseEntity<Void> deleteBooking(@PathVariable String bookingId, Authentication authentication) {
+        if (ownedBooking(bookingId, authentication).isEmpty()) return ResponseEntity.notFound().build();
+        bookingCommandService.handle(new DeleteBookingCommand(bookingId));
         return ResponseEntity.noContent().build();
     }
-    @PatchMapping("/{bookingId}")
-    public ResponseEntity<BookingResource> cancelBooking(@PathVariable String bookingId) {
-        // TODO: Llamar a tu servicio aquí, ej:
-        // bookingCommandService.handle(new CancelBookingCommand(bookingId));
 
-        // Por ahora, retornamos OK para detener el error
-        return ResponseEntity.ok().build();
+    // 6. PATCH: Cancelar reserva
+    @PatchMapping("/{bookingId}")
+    public ResponseEntity<BookingResource> cancelBooking(@PathVariable String bookingId, Authentication authentication) {
+        if (ownedBooking(bookingId, authentication).isEmpty()) return ResponseEntity.notFound().build();
+        return bookingCommandService.handle(new CancelBookingCommand(bookingId))
+                .map(b -> ResponseEntity.ok(BookingResourceFromEntityAssembler.toResourceFromEntity(b)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

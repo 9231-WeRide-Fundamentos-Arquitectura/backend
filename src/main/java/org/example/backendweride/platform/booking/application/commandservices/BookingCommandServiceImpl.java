@@ -4,6 +4,8 @@ import org.example.backendweride.platform.booking.domain.model.aggregates.Bookin
 import org.example.backendweride.platform.booking.domain.model.commands.CompleteBookingCommand; // <--- Importante
 import org.example.backendweride.platform.booking.domain.model.commands.CreateBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.StartRideCommand;
+import org.example.backendweride.platform.booking.domain.model.commands.CancelBookingCommand;
+import org.example.backendweride.platform.booking.domain.model.commands.DeleteBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.valueobjects.Rating; // <--- Importante
 import org.example.backendweride.platform.booking.domain.services.BookingCommandService;
 import org.example.backendweride.platform.booking.infrastructure.persistence.jpa.BookingRepository;
@@ -70,5 +72,18 @@ public class BookingCommandServiceImpl implements BookingCommandService {
         }
 
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<Booking> handle(CancelBookingCommand command) {
+        return bookingRepository.findById(command.bookingId()).map(booking -> {
+            booking.cancel();
+            return bookingRepository.save(booking);
+        });
+    }
+
+    @Override
+    public void handle(DeleteBookingCommand command) {
+        bookingRepository.deleteById(command.bookingId());
     }
 }
