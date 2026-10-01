@@ -1,10 +1,13 @@
 package org.example.backendweride.platform.trip.interfaces.resources;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import org.example.backendweride.platform.trip.domain.valueobjects.RouteCoordinates;
 
 import java.util.Date;
 import java.util.List;
 
+@Schema(description = "Data required to record a trip. userId must match the authenticated account.")
 public record CreateTripCommandResource (
         long bookingId,
         String userId,

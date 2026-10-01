@@ -1,7 +1,13 @@
 package org.example.backendweride.platform.booking.interfaces.resources;
 
+import java.util.List;
+import org.example.backendweride.platform.booking.domain.model.valueobjects.TripRouteCoordinate;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
+@Schema(description = "A booking of a vehicle made by a user, with its status, costs, payment and ride metrics.")
 public record BookingResource(
         String id,
         String userId,
@@ -22,7 +28,9 @@ public record BookingResource(
         Double distance,
         Integer duration,
         Double averageSpeed,
-        RatingResource rating
+        RatingResource rating,
+        List<TripRouteCoordinate> routeCoordinates,
+        String routeSource
 ) {
-    public record RatingResource(Integer score, String comment) {}
+    public record RatingResource(Integer score, String comment, java.util.List<String> tags) {}
 }

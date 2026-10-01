@@ -1,6 +1,8 @@
 package org.example.backendweride.platform.trip.domain.aggregates;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import lombok.Getter;
 import org.example.backendweride.platform.trip.domain.commands.CreateTripCommand;
 import org.example.backendweride.platform.trip.domain.valueobjects.RouteCoordinates;
@@ -63,8 +65,14 @@ public class Trip {
     @Getter
     private String status;
     @Getter
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    @Column(length = 1000)
     private List<String> incidentReports = new ArrayList<>();
     @Getter
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    @Column(length = 1000)
     private List<String> photos = new ArrayList<>();
 
     protected Trip() {

@@ -10,7 +10,10 @@ public class CreateBookingCommandFromResourceAssembler {
                 resource.userId(),
                 resource.vehicleId(),
                 resource.startLocationId(),
-                resource.endLocationId()
+                resource.endLocationId(),
+                resource.startDate(),
+                resource.endDate(),
+                resource.totalCost()
         );
     }
 }

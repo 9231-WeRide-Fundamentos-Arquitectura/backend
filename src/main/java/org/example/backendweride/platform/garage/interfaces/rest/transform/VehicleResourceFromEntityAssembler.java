@@ -4,6 +4,10 @@ import org.example.backendweride.platform.garage.interfaces.rest.resources.Vehic
 
 public class VehicleResourceFromEntityAssembler {
     public static VehicleResource toResourceFromEntity(Vehicle entity) {
+        return toResourceFromEntity(entity, null);
+    }
+
+    public static VehicleResource toResourceFromEntity(Vehicle entity, Double averageRating) {
         return new VehicleResource(
                 entity.getId().toString(),
                 entity.getBrand(), entity.getModel(), entity.getYear(), entity.getBattery(),
@@ -11,7 +15,7 @@ public class VehicleResourceFromEntityAssembler {
                 entity.getLicensePlate(), entity.getLocation(), entity.getStatus(), entity.getType(),
                 entity.getCompanyId(), entity.getPricePerMinute(), entity.getImage(), entity.getFeatures(),
                 entity.getMaintenanceStatus(), entity.getLastMaintenance(), entity.getNextMaintenance(),
-                entity.getTotalKilometers(), entity.getRating()
+                entity.getTotalKilometers(), averageRating == null ? entity.getRating() : averageRating
         );
     }
 }

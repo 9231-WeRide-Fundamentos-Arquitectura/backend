@@ -16,4 +16,12 @@ import java.util.Optional;
 public interface AccountRepository extends JpaRepository<Account,Long> {
     boolean existsByUserName(String userName);
     Optional<Account> findByUserName(String userName);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select a from Account a where a.id = :id")
+    Optional<Account> findLockedById(@org.springframework.data.repository.query.Param("id") Long id);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select a from Account a where a.userName = :username")
+    Optional<Account> findLockedByUserName(@org.springframework.data.repository.query.Param("username") String username);
 }

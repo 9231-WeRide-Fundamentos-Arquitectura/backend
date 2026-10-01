@@ -73,7 +73,11 @@ public class SnakeCasePhysicalNamingStrategy implements PhysicalNamingStrategy {
         if (lower.endsWith("y") && lower.length() > 1 && !isVowel(lower.charAt(lower.length() - 2))) {
             return word.substring(0, word.length() - 1) + "ies";
         }
-        if (lower.endsWith("s") || lower.endsWith("x") || lower.endsWith("z") || lower.endsWith("ch") || lower.endsWith("sh")) {
+        // already plural (explicit @Table names, collection tables): leave as is
+        if (lower.endsWith("s")) {
+            return word;
+        }
+        if (lower.endsWith("x") || lower.endsWith("z") || lower.endsWith("ch") || lower.endsWith("sh")) {
             return word + "es";
         }
         return word + "s";

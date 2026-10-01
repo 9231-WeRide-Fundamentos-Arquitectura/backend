@@ -26,7 +26,7 @@ public class Account extends AbstractAggregateRoot<Account> {
 
     @NotBlank
     @Getter
-    @Size(max=20)
+    @Size(max=254)
     @Column(unique = true)
     private String userName;
 

@@ -12,8 +12,10 @@ public class CompleteBookingCommandFromResourceAssembler {
                 resource.distance(),
                 resource.duration(),
                 resource.averageSpeed(),
-                resource.rating().score(),
-                resource.rating().comment()
+                resource.rating() == null ? null : resource.rating().score(),
+                resource.rating() == null ? null : resource.rating().comment(),
+                resource.routeCoordinates(),
+                resource.routeSource()
         );
     }
 }

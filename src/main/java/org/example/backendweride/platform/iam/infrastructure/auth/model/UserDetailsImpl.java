@@ -19,6 +19,7 @@ import java.util.List;
 @Getter
 @EqualsAndHashCode
 public class UserDetailsImpl implements UserDetails {
+    private final Long id;
     private final String username;
     @JsonIgnore
     private final String password;
@@ -28,7 +29,8 @@ public class UserDetailsImpl implements UserDetails {
     private final boolean enabled;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserDetailsImpl(String username, String password, Collection<? extends GrantedAuthority> authorities) {
+    public UserDetailsImpl(Long id, String username, String password, Collection<? extends GrantedAuthority> authorities) {
+        this.id = id;
         this.username = username;
         this.password = password;
         this.accountNonExpired = true;
@@ -44,6 +46,7 @@ public class UserDetailsImpl implements UserDetails {
         var authorities = List.of(new SimpleGrantedAuthority("ROLE_CLIENT"));
 
         return new UserDetailsImpl(
+                account.getId(),
                 account.getUserName(),
                 account.getPassword(),
                 authorities

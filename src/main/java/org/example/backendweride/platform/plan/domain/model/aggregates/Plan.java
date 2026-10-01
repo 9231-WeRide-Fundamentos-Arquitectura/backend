@@ -1,6 +1,8 @@
 package org.example.backendweride.platform.plan.domain.model.aggregates;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import lombok.Getter;
 import org.example.backendweride.platform.plan.domain.commands.CreatePlanCommand;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -39,6 +41,9 @@ public class Plan {
     @Getter
     int discountPercentage;
     @Getter
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    @Column(length = 1000)
     List<String> benefits = new ArrayList<>();
     @Getter
     String color;

@@ -19,6 +19,8 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
@@ -67,15 +69,23 @@ public class WebSecurityConfig {
     public PasswordEncoder passwordEncoder() { return hashingService;}
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        var config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of(
+                "http://localhost:4200",
+                "https://weride.duckdns.org",
+                "https://frontend-we-ride-lake.vercel.app"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        var source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(configurer ->
-                configurer.configurationSource(request -> {
-            var cors = new CorsConfiguration();
-            cors.setAllowedOrigins(List.of("*"));
-            cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-            cors.setAllowedHeaders(List.of("*"));
-            return cors;
-        }));
+        http.cors(configurer -> configurer.configurationSource(corsConfigurationSource()));
         http.csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exceptionHandling ->
                         exceptionHandling.authenticationEntryPoint(authenticationEntryPoint))
@@ -89,7 +99,8 @@ public class WebSecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-resources/**",
                                 "/webjars/**",
-                                "/api/v1/professional-profiles"
+                                "/api/v1/professional-profiles",
+                                "/error"
                         ).permitAll()
                         .anyRequest().authenticated());
         http.authenticationProvider(authenticationProvider());

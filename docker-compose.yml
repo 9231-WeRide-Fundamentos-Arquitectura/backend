@@ -4,10 +4,8 @@ services:
     container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: 12345678
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?define MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: weride-db
-      MYSQL_USER: weride_user
-      MYSQL_PASSWORD: weride_pass
     ports:
       - "3307:3307"
     volumes:
@@ -22,9 +20,10 @@ services:
     depends_on:
       - mysql
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/weride-db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: weride_user
-      SPRING_DATASOURCE_PASSWORD: weride_pass
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:mysql://mysql-db:3306/weride-db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?define MYSQL_ROOT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET}
     ports:
       - "8080:8080"
     networks:
