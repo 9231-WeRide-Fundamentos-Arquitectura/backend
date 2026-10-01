@@ -1,5 +1,8 @@
 package org.example.backendweride.platform.travelhistory.interfaces;
 
+import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
+import org.springframework.security.core.Authentication;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -55,7 +58,8 @@ public class TravelHistoryController {
             @ApiResponse(responseCode = "201", description = "Travel history created successfully"),
             @ApiResponse(responseCode = "404", description = "Related entity not found")
     })
-    public ResponseEntity<TravelHistoryResource> createTravelHistory(@RequestBody CreateTravelHistoryResource travelHistoryResource) {
+    public ResponseEntity<TravelHistoryResource> createTravelHistory(@RequestBody CreateTravelHistoryResource travelHistoryResource, Authentication authentication) {
+        CurrentUser.requireSelf(authentication, travelHistoryResource.userId());
         var result = travelHistoryCommandService.handle(CreateTravelHistoryCommandFromResourceAssembler.toCommandFronResource(travelHistoryResource));
         return result.map(travelHistory -> new ResponseEntity<>(
                 TravelHistoryResourceFromEntityAssembler.toTravelHistoryFromEntity(travelHistory), CREATED
@@ -73,8 +77,8 @@ public class TravelHistoryController {
             @ApiResponse(responseCode = "201", description = "Travel histories found"),
             @ApiResponse(responseCode = "404", description = "No travel histories found")
     })
-    public ResponseEntity<List<TravelHistory>> getAllTravelHistories() {
-        var result = travelHistoryQueryService.handle(new org.example.backendweride.platform.travelhistory.domain.model.queries.GetAllTravelsHistory());
+    public ResponseEntity<List<TravelHistory>> getAllTravelHistories(Authentication authentication) {
+        var result = travelHistoryQueryService.handle(new GetTravelsHistoryById(CurrentUser.id(authentication)));
         return result.map(response -> new ResponseEntity<>(response, HttpStatus.OK))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -91,7 +95,8 @@ public class TravelHistoryController {
             @ApiResponse(responseCode = "201", description = "Travel history found"),
             @ApiResponse(responseCode = "404", description = "Travel history not found")
     })
-    public ResponseEntity<List<TravelHistory>> getTravelHistoryById(@PathVariable Long userId) {
+    public ResponseEntity<List<TravelHistory>> getTravelHistoryById(@PathVariable Long userId, Authentication authentication) {
+        CurrentUser.requireSelf(authentication, userId);
         var result = travelHistoryQueryService.handle(new GetTravelsHistoryById(userId));
         return result.map(response -> new ResponseEntity<>(response, HttpStatus.OK))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
@@ -112,7 +117,12 @@ public class TravelHistoryController {
     })
     public ResponseEntity<TravelHistoryResource> updateTravelHistory(
             @PathVariable Long id,
-            @RequestBody UpdateTravelHistoryResource resource) {
+            @RequestBody UpdateTravelHistoryResource resource,
+            Authentication authentication) {
+        CurrentUser.requireSelf(authentication, resource.userId());
+        var owned = travelHistoryQueryService.handle(new GetTravelsHistoryById(CurrentUser.id(authentication)))
+                .orElse(List.of()).stream().anyMatch(t -> id.equals(t.getId()));
+        if (!owned) return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         var command = UpdateTravelHistoryCommandFromResourceAssembler.toCommandFromResource(id, resource);
         var result = travelHistoryCommandService.handle(command);
         return result.map(travelHistory -> ResponseEntity.ok(

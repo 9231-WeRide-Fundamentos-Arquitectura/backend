@@ -1,5 +1,8 @@
 package org.example.backendweride.platform.notifications.interfaces;
 
+import org.example.backendweride.platform.iam.infrastructure.auth.model.CurrentUser;
+import org.springframework.security.core.Authentication;
+
 import org.example.backendweride.platform.notifications.domain.model.queries.GetAllNotificationsByUserIdQuery;
 import org.example.backendweride.platform.notifications.domain.model.queries.GetNotificationByIdQuery;
 import org.example.backendweride.platform.notifications.domain.services.NotificationCommandService;
@@ -35,7 +38,8 @@ public class NotificationsController {
     }
 
     @PostMapping
-    public ResponseEntity<NotificationResource> createNotification(@RequestBody CreateNotificationResource resource) {
+    public ResponseEntity<NotificationResource> createNotification(@RequestBody CreateNotificationResource resource, Authentication authentication) {
+        CurrentUser.requireUsername(authentication, resource.userId());
         var command = CreateNotificationCommandFromResourceAssembler.toCommandFromResource(resource);
         notificationCommandService.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -69,16 +73,20 @@ public class NotificationsController {
     }
 
     @GetMapping("/{notificationId}")
-    public ResponseEntity<NotificationResource> getNotificationById(@PathVariable String notificationId) {
+    public ResponseEntity<NotificationResource> getNotificationById(@PathVariable String notificationId, Authentication authentication) {
         var query = new GetNotificationByIdQuery(notificationId);
         var notification = notificationQueryService.handle(query);
+        if (notification.isPresent()) CurrentUser.requireUsername(authentication, notification.get().getUserId());
 
         return notification.map(entity -> ResponseEntity.ok(NotificationResourceFromEntityAssembler.toResourceFromEntity(entity)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PatchMapping("/{notificationId}/read")
-    public ResponseEntity<String> markAsRead(@PathVariable String notificationId) {
+    public ResponseEntity<String> markAsRead(@PathVariable String notificationId, Authentication authentication) {
+        var notification = notificationQueryService.handle(new GetNotificationByIdQuery(notificationId));
+        if (notification.isEmpty()) return ResponseEntity.notFound().build();
+        CurrentUser.requireUsername(authentication, notification.get().getUserId());
         var command = new MarkNotificationAsReadCommand(notificationId);
         notificationCommandService.handle(command);
         return ResponseEntity.ok("Notification marked as read");

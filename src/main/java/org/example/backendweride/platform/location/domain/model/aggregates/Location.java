@@ -1,6 +1,8 @@
 package org.example.backendweride.platform.location.domain.model.aggregates;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import lombok.Getter;
 import org.example.backendweride.platform.location.domain.commands.CreateLocationCommand;
 import org.example.backendweride.platform.location.domain.valueobjects.Coordinates;
@@ -41,6 +43,9 @@ public class Location {
     @Getter
     private OperatingHours operatingHours;
     @Getter
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    @Column(length = 1000)
     private List<String> amenities = new ArrayList<>();
     @Getter
     private String district;
