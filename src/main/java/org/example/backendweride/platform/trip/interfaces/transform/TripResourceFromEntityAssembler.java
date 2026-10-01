@@ -22,7 +22,7 @@ public class TripResourceFromEntityAssembler {
                 entity.getAverageSpeed(),
                 entity.getMaxSpeed(),
                 entity.getTotalCost(),
-                entity.getMaxSpeed(),
+                entity.getCarbonSaved(),
                 entity.getCaloriesBurned(),
                 entity.getWeather(),
                 entity.getTemperature(),
